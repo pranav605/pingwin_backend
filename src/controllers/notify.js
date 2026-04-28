@@ -13,7 +13,7 @@ export async function notify(req, res) {
     // 1. Validate API key
     const { data: project, error: projectError } = await supabaseAdmin
         .from('projects')
-        .select('id, user_id, is_active')
+        .select('id, user_id, is_active, name')
         .eq('api_key', api_key)
         .single()
 
@@ -45,7 +45,7 @@ export async function notify(req, res) {
         .filter(row => Expo.isExpoPushToken(row.token))
         .map(row => ({
             to: row.token,
-            title,
+            title: project.name,
             body,
             sound: 'default',
         }))
