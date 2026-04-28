@@ -1,7 +1,6 @@
-import jwt from 'jsonwebtoken'
-import 'dotenv/config'
+import { supabaseAdmin } from '../config/supabase.js'
 
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -10,11 +9,12 @@ export function requireAuth(req, res, next) {
 
     const token = authHeader.split(' ')[1]
 
-    try {
-        const decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET)
-        req.userId = decoded.sub  // Supabase stores the user UUID in the 'sub' field
-        next()
-    } catch (err) {
-        return res.status(401).json({ error: 'Invalid or expired token' })
+    const { data, error } = await supabaseAdmin.auth.getUser(token)
+
+    if (error || !data?.user) {
+        return res.status(401).json({ error: 'Invalid token' })
     }
+
+    req.userId = data.user.id
+    next()
 }
