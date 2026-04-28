@@ -3,9 +3,6 @@ import { supabaseAdmin } from '../config/supabase.js'
 
 const expo = new Expo()
 
-// POST /api/notify
-// Public endpoint — authenticated via API key, not JWT
-// Called by the user's external applications
 export async function notify(req, res) {
     const { api_key, title, body } = req.body
 
@@ -13,7 +10,7 @@ export async function notify(req, res) {
         return res.status(400).json({ error: 'api_key, title, and body are required' })
     }
 
-    // 1. Validate API key and get the project + owner
+    // 1. Validate API key
     const { data: project, error: projectError } = await supabaseAdmin
         .from('projects')
         .select('id, user_id, is_active')
@@ -28,18 +25,23 @@ export async function notify(req, res) {
         return res.status(403).json({ error: 'Project is inactive' })
     }
 
-    // 2. Look up all push tokens for the project owner
+    // 2. Fetch ALL device tokens for user
     const { data: tokenRows, error: tokenError } = await supabaseAdmin
         .from('push_tokens')
-        .select('token')
+        .select('token, device_id, updated_at')
         .eq('user_id', project.user_id)
 
-    if (tokenError || !tokenRows.length) {
+    if (tokenError || !tokenRows?.length) {
         return res.status(404).json({ error: 'No push tokens found for this user' })
     }
 
-    // 3. Build Expo messages for each device token
-    const messages = tokenRows
+    // 3. Deduplicate tokens (extra safety)
+    const uniqueTokens = [...new Map(
+        tokenRows.map(row => [row.token, row])
+    ).values()]
+
+    // 4. Filter valid Expo tokens
+    const messages = uniqueTokens
         .filter(row => Expo.isExpoPushToken(row.token))
         .map(row => ({
             to: row.token,
@@ -52,19 +54,46 @@ export async function notify(req, res) {
         return res.status(400).json({ error: 'No valid Expo push tokens found' })
     }
 
-    // 4. Send via Expo in chunks (Expo recommends batching)
     let status = 'sent'
+    const tickets = []
+
     try {
         const chunks = expo.chunkPushNotifications(messages)
+
         for (const chunk of chunks) {
-            await expo.sendPushNotificationsAsync(chunk)
+            const ticketChunk = await expo.sendPushNotificationsAsync(chunk)
+            tickets.push(...ticketChunk)
         }
     } catch (err) {
         status = 'failed'
         console.error('Expo push error:', err)
     }
 
-    // 5. Log the notification to the database
+    // 5. (Optional but important) handle invalid tokens
+    const invalidTokens = []
+
+    tickets.forEach((ticket, index) => {
+        if (ticket.status === 'error') {
+            const token = messages[index].to
+
+            if (
+                ticket.details?.error === 'DeviceNotRegistered' ||
+                ticket.details?.error === 'InvalidCredentials'
+            ) {
+                invalidTokens.push(token)
+            }
+        }
+    })
+
+    // Remove invalid tokens from DB
+    if (invalidTokens.length) {
+        await supabaseAdmin
+            .from('push_tokens')
+            .delete()
+            .in('token', invalidTokens)
+    }
+
+    // 6. Log notification
     await supabaseAdmin
         .from('notifications')
         .insert({
@@ -78,5 +107,9 @@ export async function notify(req, res) {
         return res.status(500).json({ error: 'Failed to send notification' })
     }
 
-    return res.status(200).json({ message: 'Notification sent' })
+    return res.status(200).json({
+        message: 'Notification sent',
+        sent: messages.length,
+        removed_invalid_tokens: invalidTokens.length,
+    })
 }
