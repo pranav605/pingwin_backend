@@ -15,7 +15,7 @@ export async function getProjects(req, res) {
 
 // POST /api/projects
 export async function createProject(req, res) {
-    const { name, description } = req.body
+    const { name, description, is_active } = req.body
 
     if (!name) {
         return res.status(400).json({ error: 'name is required' })
@@ -23,7 +23,7 @@ export async function createProject(req, res) {
 
     const { data, error } = await supabaseAdmin
         .from('projects')
-        .insert({ user_id: req.userId, name, description })
+        .insert({ user_id: req.userId, name, description, is_active })
         .select('id, name, description, is_active, created_at')
         .single()
 
