@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../config/supabase.js'
 export async function getProjects(req, res) {
     const { data, error } = await supabaseAdmin
         .from('projects')
-        .select('id, name, description, is_active, created_at')
+        .select('id, name, description, is_active, icon, created_at')
         .eq('user_id', req.userId)
         .order('created_at', { ascending: false })
 
@@ -15,7 +15,7 @@ export async function getProjects(req, res) {
 
 // POST /api/projects
 export async function createProject(req, res) {
-    const { name, description, is_active } = req.body
+    const { name, description, is_active, icon } = req.body
 
     if (!name) {
         return res.status(400).json({ error: 'name is required' })
@@ -23,8 +23,8 @@ export async function createProject(req, res) {
 
     const { data, error } = await supabaseAdmin
         .from('projects')
-        .insert({ user_id: req.userId, name, description, is_active })
-        .select('id, name, description, is_active, created_at')
+        .insert({ user_id: req.userId, name, description, is_active, icon })
+        .select('id, name, description, is_active, created_at, icon')
         .single()
 
     if (error) return res.status(500).json({ error: error.message })
@@ -35,7 +35,7 @@ export async function createProject(req, res) {
 // PUT /api/projects/:id
 export async function updateProject(req, res) {
     const { id } = req.params
-    const { name, description, is_active } = req.body
+    const { name, description, is_active, icon } = req.body
 
     // Verify ownership before updating
     const { data: existing, error: fetchError } = await supabaseAdmin
@@ -51,9 +51,9 @@ export async function updateProject(req, res) {
 
     const { data, error } = await supabaseAdmin
         .from('projects')
-        .update({ name, description, is_active })
+        .update({ name, description, is_active, icon })
         .eq('id', id)
-        .select('id, name, description, is_active, created_at')
+        .select('id, name, description, is_active, icon, created_at')
         .single()
 
     if (error) return res.status(500).json({ error: error.message })
