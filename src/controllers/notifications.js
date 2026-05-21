@@ -31,3 +31,16 @@ export async function getNotifications(req, res) {
 
     return res.status(200).json(data)
 }
+// GET /api/notifications/all
+export async function getAllNotifications(req, res) {
+    const { data, error } = await supabaseAdmin
+        .from('notifications')
+        .select('id, project_id, title, body, status, created_at')
+        .eq('user_id', req.userId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+    if (error) return res.status(500).json({ error: error.message })
+
+    return res.status(200).json(data)
+}

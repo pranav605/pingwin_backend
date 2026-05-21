@@ -9,7 +9,7 @@ import {
     getApiKey,
     regenerateApiKey,
 } from '../controllers/projects.js'
-import { getNotifications } from '../controllers/notifications.js'
+import { getAllNotifications, getNotifications } from '../controllers/notifications.js'
 import { notify } from '../controllers/notify.js'
 
 const router = Router()
@@ -27,6 +27,7 @@ router.post('/projects/:id/apikey/regenerate', requireAuth, regenerateApiKey)
 
 // ── Notifications ────────────────────────────────
 router.get('/notifications', requireAuth, getNotifications)
+router.get('/notifications/all', requireAuth, getAllNotifications)
 
 // ── Notify (public — API key auth) ───────────────
 router.post('/notify', notify)
