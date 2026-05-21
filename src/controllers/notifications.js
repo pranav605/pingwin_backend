@@ -22,7 +22,7 @@ export async function getNotifications(req, res) {
 
     const { data, error } = await supabaseAdmin
         .from('notifications')
-        .select('id, title, body, status, created_at')
+        .select('id, project_id, title, body, status, created_at, project:projects!inner(name, icon)')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(50)
@@ -35,7 +35,7 @@ export async function getNotifications(req, res) {
 export async function getAllNotifications(req, res) {
     const { data, error } = await supabaseAdmin
         .from('notifications')
-        .select('id, project_id, title, body, status, created_at, project:projects!inner(name)')
+        .select('id, project_id, title, body, status, created_at, project:projects!inner(name, icon)')
         .eq('project.user_id', req.userId)
         .order('created_at', { ascending: false })
         .limit(100);
