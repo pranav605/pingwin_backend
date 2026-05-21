@@ -34,8 +34,8 @@ export async function getNotifications(req, res) {
 // GET /api/notifications/all
 export async function getAllNotifications(req, res) {
     const { data, error } = await supabaseAdmin
-        .from('notifications')
-        .select('id, project_id, title, body, status, created_at')
+        .from('notifications, projects')
+        .select('id, project_id, projects.name as project_name, title, body, status, created_at')
         .eq('user_id', req.userId)
         .order('created_at', { ascending: false })
         .limit(100);
